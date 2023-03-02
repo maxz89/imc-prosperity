@@ -65,7 +65,7 @@ class Trader:
         order_limit: tuple = (20 - product_position, -20 - product_position)
         orders: list[Order] = []
         buy_limit, sell_limit = order_limit[0], order_limit[1]
-        skew = product_position * -0.5
+        # skew = product_position * -0.1
 
 
         weighted_total, total_volume = 0, 0
@@ -79,8 +79,10 @@ class Trader:
         
         weighted_mean = weighted_total / total_volume
 
-        orders.append(Order(product, weighted_mean - spread + skew, buy_limit))
-        orders.append(Order(product, weighted_mean + spread + skew, sell_limit))
+        mid_price = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
+
+        orders.append(Order(product, weighted_mean - spread, buy_limit))
+        orders.append(Order(product, weighted_mean + spread, sell_limit))
         
         return orders
     
@@ -119,7 +121,7 @@ class Trader:
             # fair_price: int = self.find_short_term_means(product, order_depth) if product == "BANANAS" else self.find_long_term_means(product, order_depth)
             # orders: list[Order] = self.order_at_order_limit(fair_price, order_depth, order_limit, product)
 
-            orders: list[Order] = self.order_from_last_price(order_depth, position, product, 1)
+            orders: list[Order] = self.order_from_last_price(order_depth, position, product, 1.85)
 
         
 

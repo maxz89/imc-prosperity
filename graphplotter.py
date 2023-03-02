@@ -47,8 +47,8 @@ def calc_max_pearls_profit(csvPath="results\short_and_long_term_mean_results.csv
         
 
 # Example chart
-results_dict = {1: "results\short_and_long_term_mean_results.csv", 2: "results\order_at_limit_results.csv"}
+results_dict = {1: "results\short_and_long_term_mean_results.csv", 2: "results\order_at_limit_results.csv", 3: "results\spread-1.75.csv"}
 # calc_max_pearls_profit()
-plot_product_chart("BANANAS")
+# plot_product_chart("BANANAS")
 # plot_pnl_chart("PEARLS", results_dict[2])
-# plot_pnl_chart("PEARLS", results_dict[1])
+plot_pnl_chart("PEARLS", results_dict[3])
