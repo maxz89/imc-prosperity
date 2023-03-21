@@ -61,12 +61,9 @@ class Trader:
 
     def order_from_last_price(self, order_depth, position, product, spread) -> list[Order]:
         product_position = position[product]
-        # First element is buy limit, second is sell limit
-        order_limit: tuple = (20 - product_position, -20 - product_position)
         orders: list[Order] = []
-        buy_limit, sell_limit = order_limit[0], order_limit[1]
+        buy_limit, sell_limit = 20 - product_position, -20 - product_position
         # skew = product_position * -0.1
-
 
         weighted_total, total_volume = 0, 0
         for price, volume in order_depth.buy_orders.items():
@@ -81,12 +78,18 @@ class Trader:
 
         mid_price = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
 
-        orders.append(Order(product, weighted_mean - spread, buy_limit))
-        orders.append(Order(product, weighted_mean + spread, sell_limit))
-        
+        orders.append(Order(product, mid_price - spread, buy_limit))
+        orders.append(Order(product, mid_price + spread, sell_limit))
         return orders
     
-    
+    def generate_pearls_order(self, position) -> List[Order]:
+        pearls_position = position["PEARLS"]
+        orders: list[Order] = []
+        buy_limit, sell_limit = 20 - pearls_position, -20 - pearls_position
+        orders.append(Order("PEARLS", 9998, buy_limit))
+        orders.append(Order("PEARLS", 10002, sell_limit))
+        return orders
+
 
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
         """
@@ -97,9 +100,12 @@ class Trader:
         result = {}
         fair_price = None
         position = state.position
+        orders: list[Order] = []
         print("__________________________")
         print(".")
         print("position: ", position)
+        print("own trades: ", state.own_trades)
+        print("market trades: ", state.market_trades)
 
         # Iterate over all the keys (the available products) contained in the order depths
         for product in state.order_depths.keys():
@@ -118,13 +124,15 @@ class Trader:
             
             
             
-            # fair_price: int = self.find_short_term_means(product, order_depth) if product == "BANANAS" else self.find_long_term_means(product, order_depth)
+            fair_price: int = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
             # orders: list[Order] = self.order_at_order_limit(fair_price, order_depth, order_limit, product)
 
-            orders: list[Order] = self.order_from_last_price(order_depth, position, product, 1.85)
+            if product == "PEARLS":
+                orders = self.generate_pearls_order(position)
+            else:
+                orders = self.order_from_last_price(order_depth, position, product, 1.85)
 
-        
-
+                        
             print("buy orders: ", order_depth.buy_orders)
             print("sell order: ", order_depth.sell_orders)
             print("fair price: ", fair_price)
@@ -135,8 +143,6 @@ class Trader:
                     
 
             result[product] = orders 
-              
-        print("own trades: ", state.own_trades)
         print(".")
         return result
 
