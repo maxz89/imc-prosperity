@@ -10,6 +10,9 @@ class Trader:
     # queue of past mid prices
     banana_past_mid_prices = []
 
+    position_limit_pearls = position_limit_bananas = 20
+    position_limit_pina_coladas, position_limit_coconuts = 300, 600
+
     def find_long_term_means(self, product: str, order_depth: OrderDepth) -> int:
         product_mean: List = self.long_term_means[product]
         weighted_mean, total_volume = 0, 0
@@ -56,10 +59,10 @@ class Trader:
         
         return orders
 
-    def order_from_last_price(self, order_depth, position, product, spread) -> list[Order]:
+    def order_from_last_price(self, order_depth, position, product, spread, position_limit) -> list[Order]:
         product_position = position[product]
         orders: list[Order] = []
-        buy_limit, sell_limit = 20 - product_position, -20 - product_position
+        buy_limit, sell_limit = position_limit - product_position, -position_limit - product_position
         # skew = product_position * -0.1
 
         curr_mid_price = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
@@ -96,8 +99,8 @@ class Trader:
 
         orders.append(Order("PEARLS", 9996.5, buy_limit - buy_amount))
         orders.append(Order("PEARLS", 10003.5, sell_limit - sell_amount))
-        print("PEARL ORDERS: ", orders)
-        print("buy limit %d, buy amount %d, sell limit %d, sell amount %d", buy_limit, buy_amount, sell_limit, sell_amount)
+        # print("PEARL ORDERS: ", orders)
+        # print("buy limit %d, buy amount %d, sell limit %d, sell amount %d", buy_limit, buy_amount, sell_limit, sell_amount)
         return orders
     
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
@@ -111,7 +114,8 @@ class Trader:
         position = state.position
         orders: list[Order] = []
         print("__________________________")
-        print(".")
+        print("__________________________")
+        print("\n")
         print("position: ", position)
         print("own trades: ", state.own_trades)
         print("market trades: ", state.market_trades)
@@ -138,9 +142,12 @@ class Trader:
 
             if product == "PEARLS":
                 orders = self.generate_pearls_order(position, order_depth)
-            else:
-                orders = self.order_from_last_price(order_depth, position, product, 2)
-
+            elif product == "BANANAS":
+                orders = self.order_from_last_price(order_depth, position, product, 2, self.position_limit_bananas)
+            elif product == "COCONUTS":
+                orders = self.order_from_last_price(order_depth, position, product, 1, self.position_limit_coconuts)
+            elif product == "PINA_COLADAS":
+                orders = self.order_from_last_price(order_depth, position, product, 1, self.position_limit_pina_coladas)
                         
             print("buy orders: ", order_depth.buy_orders)
             print("sell order: ", order_depth.sell_orders)
