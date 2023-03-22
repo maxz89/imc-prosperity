@@ -7,6 +7,9 @@ class Trader:
     # Dictionary with product as keys and means as value. Means are lists with 2 elements, first element is mean of middle price from last x days and second is queue of middle price of from past x days.
     short_term_means = {}
 
+    # queue of past mid prices
+    banana_past_mid_prices = []
+
     def find_long_term_means(self, product: str, order_depth: OrderDepth) -> int:
         product_mean: List = self.long_term_means[product]
         weighted_mean, total_volume = 0, 0
@@ -23,24 +26,18 @@ class Trader:
             product_mean[1] = (product_mean[1] + total_volume)
         return product_mean[0]
 
-    def find_short_term_means(self, product: str, order_depth: OrderDepth) -> int:
-        price_queue: List = self.short_term_means[product][1]
+    def find_short_term_means(self, product: str, order_depth: OrderDepth, max_queue_length) -> int:
+        curr_mid_price = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
+        sum_past_prices = curr_mid_price
+        for price in self.banana_past_mid_prices:
+            sum_past_prices += price
+        mean = sum_past_prices / (len(self.banana_past_mid_prices) + 1)
 
-        weighted_mean, total_volume = 0, 0
-        for price, volume in order_depth.buy_orders.items():
-            weighted_mean += price * volume
-            total_volume += volume
+        self.banana_past_mid_prices.insert(0, curr_mid_price)
+        if len(self.banana_past_mid_prices) > max_queue_length:
+            self.banana_past_mid_prices.pop()
 
-        for price, volume in order_depth.sell_orders.items():
-            weighted_mean += price * -volume
-            total_volume += -volume
-        
-        price_queue.append(weighted_mean / total_volume)
-        self.short_term_means[product][0] += weighted_mean / total_volume
-        if len(price_queue) > 15:
-            self.short_term_means[product][0] -= price_queue[0]
-            price_queue.pop(0)
-        return self.short_term_means[product][0]/len(price_queue)
+        return mean
 
     # quotes the greatest possible volume on both buy and sell sides for a set spread
     def order_at_order_limit(self, fair_price, order_depth, position, product) -> list[Order]:
@@ -65,21 +62,12 @@ class Trader:
         buy_limit, sell_limit = 20 - product_position, -20 - product_position
         # skew = product_position * -0.1
 
-        weighted_total, total_volume = 0, 0
-        for price, volume in order_depth.buy_orders.items():
-            weighted_total += price * volume
-            total_volume += volume
+        curr_mid_price = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
 
-        for price, volume in order_depth.sell_orders.items():
-            weighted_total += price * -volume
-            total_volume += -volume
-        
-        weighted_mean = weighted_total / total_volume
+        # mean = self.find_short_term_means("BANANA", order_depth, 10)
 
-        mid_price = (max(order_depth.sell_orders.keys()) + min(order_depth.buy_orders.keys()))/2
-
-        orders.append(Order(product, mid_price - spread, buy_limit))
-        orders.append(Order(product, mid_price + spread, sell_limit))
+        orders.append(Order(product, curr_mid_price - spread, buy_limit))
+        orders.append(Order(product, curr_mid_price + spread, sell_limit))
         return orders
     
     def generate_pearls_order(self, position, order_depth) -> List[Order]:
@@ -151,7 +139,7 @@ class Trader:
             if product == "PEARLS":
                 orders = self.generate_pearls_order(position, order_depth)
             else:
-                orders = self.order_from_last_price(order_depth, position, product, 1.85)
+                orders = self.order_from_last_price(order_depth, position, product, 2)
 
                         
             print("buy orders: ", order_depth.buy_orders)
