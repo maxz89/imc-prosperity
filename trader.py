@@ -7,6 +7,9 @@ class Trader:
     # Dictionary with product as keys and means as value. Means are lists with 2 elements, first element is mean of middle price from last x days and second is queue of middle price of from past x days.
     short_term_means = {}
 
+    # past order depths
+    historical_order_depths = []
+
     def find_long_term_means(self, product: str, order_depth: OrderDepth) -> int:
         product_mean: List = self.long_term_means[product]
         weighted_mean, total_volume = 0, 0
@@ -109,8 +112,37 @@ class Trader:
         orders.append(Order("PEARLS", 9996.5, buy_limit - buy_amount))
         orders.append(Order("PEARLS", 10003.5, sell_limit - sell_amount))
         print("PEARL ORDERS: ", orders)
-        print("buy limit %d, buy amount %d, sell limit %d, sell amount %d", buy_limit, buy_amount, sell_limit, sell_amount)
         return orders
+    
+    # def update_historical_order_depths(self, curr_order_depth):
+    #     self.historical_order_depths.insert(0, curr_order_depth)
+    #     if len(self.historical_order_depths) > 10:
+    #         self.historical_order_depths.pop()
+            
+    
+    # def time_market(self, order_depth, position) -> List[Order]:
+    #     orders = []
+    #     buy_limit, sell_limit = 20 - position["BANANAS"], -20 - position["BANANAS"]
+    #     historical_order_depths = self.historical_order_depths
+    #     if len(historical_order_depths) > 1:
+    #         last_order_depth = historical_order_depths[1]
+    #         last_mid_price = (min(last_order_depth.sell_orders.keys()) + max(last_order_depth.buy_orders.keys()))/2
+    #         curr_mid_price = (min(order_depth.sell_orders.keys()) + max(order_depth.buy_orders.keys()))/2
+    #         # sell
+    #         if curr_mid_price - last_mid_price >= 4:
+    #             bid_price = max(order_depth.buy_orders.keys())
+    #             orders.append(Order("BANANAS", bid_price, max(order_depth.buy_orders[bid_price], sell_limit)))
+    #         # buy
+    #         elif curr_mid_price - last_mid_price <= -4:
+    #             bid_price = min(order_depth.sell_orders.keys())
+    #             orders.append(Order("BANANAS", bid_price, min(order_depth.sell_orders[bid_price], buy_limit)))
+        
+    #     print("Banana orders ", orders)
+    #     return orders
+
+
+        
+
     
     def run(self, state: TradingState) -> Dict[str, List[Order]]:
         """
@@ -150,8 +182,11 @@ class Trader:
 
             if product == "PEARLS":
                 orders = self.generate_pearls_order(position, order_depth)
-            else:
-                orders = self.order_from_last_price(order_depth, position, product, 1.85)
+            elif product == "BANANAS":
+                orders = self.time_market(order_depth, position)
+
+
+            # self.update_historical_order_depths(order_depth)
 
                         
             print("buy orders: ", order_depth.buy_orders)
