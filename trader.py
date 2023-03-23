@@ -10,8 +10,19 @@ class Trader:
     # queue of past mid prices
     banana_past_mid_prices = []
 
+    # Dict with product as keys and corresponding dict for various smas with their time frame as key
+    smas = {}
+
+    # Similar to smas
+    channels = {}
+
+    # last 5 most recent differences between sma250 and sma10
+    last_sma_diffs = []
+
     position_limit_pearls = position_limit_bananas = 20
     position_limit_pina_coladas, position_limit_coconuts = 300, 600
+
+    exponential_buy_amount, exponential_sell_amount = 1, -1
 
     def find_long_term_means(self, product: str, order_depth: OrderDepth) -> int:
         product_mean: List = self.long_term_means[product]
@@ -57,6 +68,109 @@ class Trader:
             #print("SELL", product, str(sell_limit) + "x", fair_price + 1)
             orders.append(Order(product, fair_price + 1, sell_limit))
         
+        return orders
+
+    def set_and_get_sma(self, curr_mid_price, product, time_frame):
+        if product not in self.smas:
+            self.smas[product] = {}
+        if time_frame not in self.smas[product]:
+            self.smas[product][time_frame] = []   
+        self.smas[product][time_frame].insert(0, curr_mid_price)
+        if len(self.smas[product][time_frame]) > time_frame:
+            self.smas[product][time_frame].pop()
+        return round(sum(self.smas[product][time_frame]) / len(self.smas[product][time_frame]), 2)
+    
+    # work on this strategy for market neutral but high volatility products
+    def arb_off_sma(self, order_depth, position, product, time_frame, position_limit):
+        curr_mid_price = (min(order_depth.sell_orders.keys()) + max(order_depth.buy_orders.keys()))/2
+        sma = self.set_and_get_sma(curr_mid_price, product, time_frame)
+        print("sma: ", sma)
+        product_position = position[product]
+        orders: list[Order] = []
+        buy_limit, sell_limit = position_limit - product_position, -position_limit - product_position
+
+        if curr_mid_price - sma > 10:
+            orders.append(Order(product, min(order_depth.buy_orders.keys()), sell_limit // 2))
+        elif sma - curr_mid_price > 10:
+            orders.append(Order(product, max(order_depth.sell_orders.keys()), buy_limit // 2))
+        elif abs(curr_mid_price - sma) < 3:
+            if product_position < 0:
+                orders.append(Order(product, max(order_depth.sell_orders.keys()), min(-product_position, buy_limit // 2)))
+            elif product_position > 0:
+                orders.append(Order(product, min(order_depth.buy_orders.keys()), max(-product_position, sell_limit // 2)))
+        return orders
+    
+
+    def set_and_get_channel_max_min(self, curr_mid_price, product, time_frame):
+        if product not in self.channels:
+            self.channels[product] = {}
+        if time_frame not in self.channels[product]:
+            self.channels[product][time_frame] = []   
+        res = (min(self.channels[product][time_frame], default=0), max(self.channels[product][time_frame], default=0))
+        self.channels[product][time_frame].insert(0, curr_mid_price)
+        if len(self.channels[product][time_frame]) > time_frame:
+            self.channels[product][time_frame].pop()
+        return res
+    
+    # channel trading directional
+    def channel_trade(self, order_depth, position, product, time_frame, position_limit):
+        curr_mid_price = (min(order_depth.sell_orders.keys()) + max(order_depth.buy_orders.keys()))/2
+        product_position = position[product]
+        buy_limit, sell_limit = position_limit - product_position, -position_limit - product_position
+        orders: list[Order] = []
+        # tuple (channel min, channel max)
+        channel_min_max = self.set_and_get_channel_max_min(curr_mid_price, product, time_frame)
+        print("channel min max ", channel_min_max)
+        if len(self.channels[product][time_frame]) == time_frame:
+            if curr_mid_price < channel_min_max[0]:
+                orders.append(Order(product, min(order_depth.buy_orders.keys()), max(sell_limit, self.exponential_sell_amount)))
+                self.exponential_sell_amount *= 13
+            elif curr_mid_price > channel_min_max[1]:
+                orders.append(Order(product, max(order_depth.sell_orders.keys()), min(self.exponential_buy_amount, buy_limit)))
+                self.exponential_buy_amount *= 13
+            else:
+                self.exponential_buy_amount, self.exponential_sell_amount = 1, -1
+        
+        return orders
+
+    
+    # directional strategy
+    def swing_off_sma(self, order_depth, position, product, position_limit):
+        product_position = position[product]
+        orders: list[Order] = []
+        buy_limit, sell_limit = position_limit - product_position, -position_limit - product_position
+
+        curr_mid_price = (min(order_depth.sell_orders.keys()) + max(order_depth.buy_orders.keys()))/2
+        sma250 = self.set_and_get_sma(curr_mid_price, product, 250)
+        sma10 = self.set_and_get_sma(curr_mid_price, product, 10)
+        sma_diff = sma250 - sma10
+        if sma_diff > 0:
+            if len(self.last_sma_diffs) == 5:
+                if self.last_sma_diffs[0] < 0:
+                    # sma10 crossing under sma250 -> sell signal
+                    orders.append(Order(product, min(order_depth.buy_orders.keys()), sell_limit // 2))
+                    self.last_sma_diffs = []
+            elif len(self.last_sma_diffs) > 0:
+                if self.last_sma_diffs[0] < 0:
+                    self.last_sma_diffs = []
+                elif self.last_sma_diffs[0] > 0:
+                    self.last_sma_diffs.append(sma_diff)
+            else:
+                self.last_sma_diffs.append(sma_diff)
+        elif sma_diff < 0:
+            if len(self.last_sma_diffs) == 5:
+                if self.last_sma_diffs[0] > 0:
+                    # sma10 crossing over sma250 -> buy signal
+                    orders.append(Order(product, max(order_depth.sell_orders.keys()), buy_limit // 2))
+                    self.last_sma_diffs = []
+            elif len(self.last_sma_diffs) > 0:
+                if self.last_sma_diffs[0] > 0:
+                    self.last_sma_diffs = []
+                elif self.last_sma_diffs[0] < 0:
+                    self.last_sma_diffs.append(sma_diff)
+            else:
+                self.last_sma_diffs.append(sma_diff)
+
         return orders
 
     def order_from_last_price(self, order_depth, position, product, spread, position_limit) -> list[Order]:
@@ -147,7 +261,7 @@ class Trader:
             elif product == "COCONUTS":
                 orders = self.order_from_last_price(order_depth, position, product, 1, self.position_limit_coconuts)
             elif product == "PINA_COLADAS":
-                orders = self.order_from_last_price(order_depth, position, product, 1, self.position_limit_pina_coladas)
+                orders = self.channel_trade(order_depth, position, product, 50, self.position_limit_pina_coladas)
                         
             print("buy orders: ", order_depth.buy_orders)
             print("sell order: ", order_depth.sell_orders)
