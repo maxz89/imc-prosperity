@@ -7,15 +7,37 @@ import datetime
 
 
 
-def plot_product_chart(product, rows=None, csvPath='island-data-bottle-round-2\prices_round_2_day_0.csv'):
+def plot_product_chart(product, rows=None, csvPath='island-data-bottle-round-2\prices_round_2_day_1.csv'):
     # parsing csv for company specific data
     df = pd.read_csv(csvPath, sep=";")
     parsed = pd.DataFrame()
     parsed = pd.concat([parsed, df[df["product"] == product]])
     if rows:
         parsed.drop([2, len(parsed)])
+    sma = get_sma(parsed, 40)
+    sma_plot = pd.DataFrame(sma, columns=['timestamp', 'sma'])
     fig = go.Figure([go.Scatter(x=parsed['timestamp'], y=parsed['mid_price'])])
+    fig.add_trace(go.Scatter(x=sma_plot['timestamp'], y=sma_plot['sma']))
     fig.show()
+    
+
+
+def get_sma(data, sma_length):
+    sma_queue = []
+    sma_data = []
+    for i in data.index:
+        timestamp = data.loc[i, 'timestamp']
+        mid_price = data.loc[i, 'mid_price']
+        sma_queue.insert(0, mid_price)
+        if len(sma_queue) > sma_length:
+            sma_queue.pop()
+        sma_data.append([timestamp, round(sum(sma_queue) / len(sma_queue), 2)])
+    return sma_data
+
+def get_ema(data):
+    ema = 0
+    
+
 
 def plot_two_product_charts(product1, product2, csvPath='island-data-bottle-round-2\prices_round_2_day_1.csv'):
     df = pd.read_csv(csvPath, sep=";")
@@ -23,11 +45,24 @@ def plot_two_product_charts(product1, product2, csvPath='island-data-bottle-roun
     parsed1 = pd.concat([parsed, df[df["product"] == product1]])
     for index in parsed1.index:
         parsed1.loc[index, 'mid_price'] -= 7000
-    print(parsed1)
     parsed2 = pd.concat([parsed, df[df["product"] == product2]])
+
+    coconuts_sma50data, coconuts_sma100data, coconuts_sma250data = get_sma(parsed2, 50), get_sma(parsed2, 100), get_sma(parsed2, 250)
+    p_colada_sma10data, p_colada_sma50data, p_colada_sma100data, p_colada_sma150data, p_colada_sma250data = get_sma(parsed1, 10), get_sma(parsed1, 50), get_sma(parsed1, 100), get_sma(parsed1, 150), get_sma(parsed1, 250)
+
+    coconuts_sma50, coconuts_sma100, coconuts_sma250 = pd.DataFrame(coconuts_sma50data, columns=['timestamp', 'sma']), pd.DataFrame(coconuts_sma100data, columns=['timestamp', 'sma']), pd.DataFrame(coconuts_sma250data, columns=['timestamp', 'sma'])
+    p_colada_sma10, p_colada_sma50, p_colada_sma100, p_colada_sma150, p_colada_sma250 = pd.DataFrame(p_colada_sma10data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma50data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma100data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma150data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma250data, columns=['timestamp', 'sma'])
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=parsed1['timestamp'], y = parsed1['mid_price'], hovertext=parsed1['product'], hoverinfo="text"))
-    fig.add_trace(go.Scatter(x=parsed2['timestamp'], y = parsed2['mid_price'], hovertext=parsed2['product'], hoverinfo="text"))
+    # fig.add_trace(go.Scatter(x=parsed1['timestamp'], y = parsed1['mid_price']))
+    fig.add_trace(go.Scatter(x=parsed2['timestamp'], y = parsed2['mid_price']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma10['timestamp'], y= p_colada_sma10['sma']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma50['timestamp'], y= p_colada_sma50['sma']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma100['timestamp'], y= p_colada_sma100['sma']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma150['timestamp'], y= p_colada_sma150['sma']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma250['timestamp'], y= p_colada_sma250['sma']))
+    # fig.add_trace(go.Scatter(x=coconuts_sma50['timestamp'], y= coconuts_sma50['sma']))
+    fig.add_trace(go.Scatter(x=coconuts_sma100['timestamp'], y= coconuts_sma100['sma']))
+    fig.add_trace(go.Scatter(x=coconuts_sma250['timestamp'], y= coconuts_sma250['sma']))
     fig.show()
         
 def plot_pnl_chart(product,  csvPath, rows=None):
@@ -101,12 +136,10 @@ def plot_timestamp_value(timestamps, values):
 
 # # Example chart
 # results_dict = {1: "results\short_and_long_term_mean_results.csv", 2: "results\order_at_limit_results.csv", 3: "results\spread-1.75.csv"}
-# # calc_max_pearls_profit()
 # plot_product_chart("BANANAS")
 # plot_product_chart("COCONUTS")
 # plot_product_chart("PINA_COLADAS")
-# plot_two_product_charts("PINA_COLADAS", "COCONUTS")
-# plot_product_chart("PEARLS")
-plot_pnl_chart("BANANAS", "results\market_making_new_products.csv")
-plot_pnl_chart("COCONUTS", "results\market_making_new_products.csv")
-plot_pnl_chart("PINA_COLADAS", "results\market_making_new_products.csv")
+plot_two_product_charts("PINA_COLADAS", "COCONUTS")
+# plot_pnl_chart("COCONUTS", "results\market_making_new_products.csv")
+# plot_pnl_chart("PINA_COLADAS", "results\market_making_new_products.csv")
+# plot_pnl_chart("PINA_COLADAS", "results/liquidate_with_sma_50.csv")
