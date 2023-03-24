@@ -7,15 +7,20 @@ import datetime
 
 
 
-def plot_product_chart(product, rows=None, csvPath='island-data-bottle-round-2\prices_round_2_day_0.csv'):
+def plot_product_chart(product, rows=None, csvPath='island-data-bottle-round-2\prices_round_2_day_1.csv'):
     # parsing csv for company specific data
     df = pd.read_csv(csvPath, sep=";")
     parsed = pd.DataFrame()
     parsed = pd.concat([parsed, df[df["product"] == product]])
     if rows:
         parsed.drop([2, len(parsed)])
+    sma = get_sma(parsed, 40)
+    sma_plot = pd.DataFrame(sma, columns=['timestamp', 'sma'])
     fig = go.Figure([go.Scatter(x=parsed['timestamp'], y=parsed['mid_price'])])
+    fig.add_trace(go.Scatter(x=sma_plot['timestamp'], y=sma_plot['sma']))
     fig.show()
+    
+
 
 def get_sma(data, sma_length):
     sma_queue = []
@@ -48,16 +53,16 @@ def plot_two_product_charts(product1, product2, csvPath='island-data-bottle-roun
     coconuts_sma50, coconuts_sma100, coconuts_sma250 = pd.DataFrame(coconuts_sma50data, columns=['timestamp', 'sma']), pd.DataFrame(coconuts_sma100data, columns=['timestamp', 'sma']), pd.DataFrame(coconuts_sma250data, columns=['timestamp', 'sma'])
     p_colada_sma10, p_colada_sma50, p_colada_sma100, p_colada_sma150, p_colada_sma250 = pd.DataFrame(p_colada_sma10data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma50data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma100data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma150data, columns=['timestamp', 'sma']), pd.DataFrame(p_colada_sma250data, columns=['timestamp', 'sma'])
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=parsed1['timestamp'], y = parsed1['mid_price']))
+    # fig.add_trace(go.Scatter(x=parsed1['timestamp'], y = parsed1['mid_price']))
     fig.add_trace(go.Scatter(x=parsed2['timestamp'], y = parsed2['mid_price']))
-    fig.add_trace(go.Scatter(x=p_colada_sma10['timestamp'], y= p_colada_sma10['sma']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma10['timestamp'], y= p_colada_sma10['sma']))
     # fig.add_trace(go.Scatter(x=p_colada_sma50['timestamp'], y= p_colada_sma50['sma']))
     # fig.add_trace(go.Scatter(x=p_colada_sma100['timestamp'], y= p_colada_sma100['sma']))
     # fig.add_trace(go.Scatter(x=p_colada_sma150['timestamp'], y= p_colada_sma150['sma']))
-    fig.add_trace(go.Scatter(x=p_colada_sma250['timestamp'], y= p_colada_sma250['sma']))
+    # fig.add_trace(go.Scatter(x=p_colada_sma250['timestamp'], y= p_colada_sma250['sma']))
     # fig.add_trace(go.Scatter(x=coconuts_sma50['timestamp'], y= coconuts_sma50['sma']))
-    # fig.add_trace(go.Scatter(x=coconuts_sma100['timestamp'], y= coconuts_sma100['sma']))
-    # fig.add_trace(go.Scatter(x=coconuts_sma250['timestamp'], y= coconuts_sma250['sma']))
+    fig.add_trace(go.Scatter(x=coconuts_sma100['timestamp'], y= coconuts_sma100['sma']))
+    fig.add_trace(go.Scatter(x=coconuts_sma250['timestamp'], y= coconuts_sma250['sma']))
     fig.show()
         
 def plot_pnl_chart(product,  csvPath, rows=None):
